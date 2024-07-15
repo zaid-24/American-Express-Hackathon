@@ -1,0 +1,297 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[1]:
+
+
+from IPython.core.interactiveshell import InteractiveShell
+InteractiveShell.ast_node_interactivity = 'all'
+
+
+# In[2]:
+
+
+## Load libraries
+import pandas as pd
+import numpy as np
+
+
+# In[3]:
+
+
+# Display options
+pd.set_option('display.max_columns',50)
+
+
+# ## Read data
+
+# In[4]:
+
+
+train_data = pd.read_csv('train_data_with_samplefeatures.csv')
+test_data = pd.read_csv('test_data_with_samplefeatures.csv')
+
+
+# In[5]:
+
+
+train_data.shape
+train_data.head(2)
+
+
+# In[6]:
+
+
+test_data.shape
+test_data.head(2)
+
+
+# #### Create dependent column
+
+# In[7]:
+
+
+train_data['winner_01'] = train_data.apply(lambda x: 1 if (x['team2']==x['winner']) else 0, axis=1)
+
+
+# #### Pre process
+
+# In[8]:
+
+
+## Toss winner to numerical - 1 if team2 wins, else 0
+
+train_data['toss_winner_01'] = np.where(train_data['toss winner']==train_data['team2'], 1, 0)
+test_data['toss_winner_01'] = np.where(test_data['toss winner']==test_data['team2'], 1, 0)
+
+
+# In[9]:
+
+
+## Toss decision - categorical - 1 if winner bats, 0 otherwise
+
+train_data['toss_decision_01'] = np.where(train_data['toss decision']=='bat', 1, 0)
+test_data['toss_decision_01'] = np.where(test_data['toss decision']=='bat', 1, 0)
+
+
+# #### Selecting relevant columns
+
+# In[10]:
+
+
+X,y = train_data[['toss_winner_01','toss_decision_01','team_count_50runs_last15','team_winp_last5','team1only_avg_runs_last15','team1_winp_team2_last15','ground_avg_runs_last15']], train_data['winner_01']
+
+
+# In[11]:
+
+
+X_test = test_data[X.columns.tolist()]
+
+
+# #### Imputation
+
+# In[12]:
+
+
+X_nans = X.isna().sum().reset_index()
+X_nans[X_nans[0]!=0]
+
+X_test_nans = X_test.isna().sum().reset_index()
+X_test_nans[X_test_nans[0]!=0]
+
+
+# In[13]:
+
+
+X.fillna(0, inplace=True)
+X_test.fillna(0, inplace=True)
+
+
+# In[14]:
+
+
+X_nans = X.isna().sum().reset_index()
+X_nans[X_nans[0]!=0]
+
+X_test_nans = X_test.isna().sum().reset_index()
+X_test_nans[X_test_nans[0]!=0]
+
+
+# ### Stats
+
+# In[15]:
+
+
+X['toss_winner_01'].value_counts()
+X['toss_decision_01'].value_counts()
+X['team_count_50runs_last15'].describe()
+
+
+# ## Model
+
+# #### GBM
+
+# In[16]:
+
+
+from sklearn.ensemble import GradientBoostingClassifier
+
+
+# In[17]:
+
+
+# user-defined parameters
+
+algo_name = 'GradientBoostingClassifier'
+is_ensemble = 'no'
+n_trees = 10
+depth = 2
+lr = 0.1
+
+
+# ##### Train
+
+# In[18]:
+
+
+clf_gbm = GradientBoostingClassifier(n_estimators = n_trees, max_depth = depth, learning_rate = lr).fit(X,y)
+
+
+# In[19]:
+
+
+train_data['y_pred_01'] = clf_gbm.predict(X)
+test_data['y_pred_01'] = clf_gbm.predict(X_test)
+
+
+# In[20]:
+
+
+from sklearn.metrics import classification_report
+
+
+# In[21]:
+
+
+# Train accuracy
+print(classification_report(y, clf_gbm.predict(X), labels=[0,1]))
+
+
+# In[22]:
+
+
+train_data['win_pred_score'] = clf_gbm.predict_proba(X)[:,1]
+test_data['win_pred_score'] = clf_gbm.predict_proba(X_test)[:,1]
+
+
+# ##### Getting win_pred_score corresponding to winner team
+
+# In[23]:
+
+
+train_data['win_pred_score'] = np.where( (train_data['y_pred_01']==0), (1-train_data['win_pred_score']), train_data['win_pred_score'])
+test_data['win_pred_score'] = np.where( (test_data['y_pred_01']==0), (1-test_data['win_pred_score']), test_data['win_pred_score'])
+
+
+# ##### Getting winner_team_id from custom dependent column
+
+# In[24]:
+
+
+train_data['win_pred_team_id'] = np.where( (train_data['y_pred_01']==0), (train_data['team1_id']), train_data['team2_id'])
+test_data['win_pred_team_id'] = np.where( (test_data['y_pred_01']==0), (test_data['team1_id']), test_data['team2_id'])
+
+
+# #### Feature importance
+
+# In[25]:
+
+
+df_feat_importance = pd.DataFrame({'feat_name':X.columns.tolist(), 'model_feat_imp_train':clf_gbm.feature_importances_}).sort_values(by='model_feat_imp_train', ascending=False)\
+                                                                                                                        .reset_index(drop=True).head(10)
+df_feat_importance
+
+
+# ## File preparation
+
+# #### File 1
+
+# In[26]:
+
+
+train_data['dataset_type'] = 'train'
+test_data['dataset_type'] = 'r1'
+
+
+# In[27]:
+
+
+## refactor
+
+df_file1 = pd.concat([test_data[['match id','dataset_type','win_pred_team_id','win_pred_score',] + list(df_feat_importance['feat_name'].head(10))], \
+                     train_data[['match id','dataset_type','win_pred_team_id','win_pred_score',] + list(df_feat_importance['feat_name'].head(10))]])
+
+renaming_dict = {}
+for i,col in enumerate(list(df_feat_importance['feat_name'].head(10))):
+    renaming_dict[col] = f'indep_feat_id{i+1}'
+df_file1.rename(columns=renaming_dict, inplace=True)
+
+for i in range(1,11):
+    if f'indep_feat_id{i}' not in df_file1.columns:
+        df_file1[f'indep_feat_id{i}'] = np.nan
+
+df_file1['train_algorithm'] = algo_name
+df_file1['is_ensemble'] = is_ensemble
+df_file1['train_hps_trees'] = n_trees
+df_file1['train_hps_depth'] = depth
+df_file1['train_hps_lr'] = lr
+
+
+# In[28]:
+
+
+df_file1.shape
+df_file1.head()
+
+
+# #### File 2
+
+# In[29]:
+
+
+feature_desc = {'team_count_50runs_last15':'Ratio of number of 50s by players in team1 to number of 50s by players in team2 in last 15 games',\
+               'team_winp_last5':'Ratio of team1\'s win % to team2\'s win % in last 5 games',\
+               'ground_avg_runs_last15':'average runs scored in the ground in last 15 games',\
+               'team1_winp_team2_last15':'Team1\'s win percentage against Team2 in last 15 games',\
+               'team1only_avg_runs_last15':'team1\'s avg inning runs in last 15 games',\
+                
+               'season_num' : 'Numerical form of season. Takes 1 for oldest season and increases for latest seasons.',\
+               'toss_winner_01' : 'Toss winner to numerical - 1 if team2 wins, else 0',\
+               'toss_decision_01' : 'Toss decision - categorical - 1 if winner bats, 0 otherwise'}
+
+
+# In[30]:
+
+
+# df_feat_importance.rename(index={0:'feat_id'}, inplace=True)
+df_file2 = df_feat_importance
+df_file2['feat_id'] = [i+1 for i in df_file2.index]
+df_file2['feat_rank_train'] = [i+1 for i in df_file2.index]
+df_file2 = df_file2.set_index('feat_id')
+df_file2['feat_description'] = df_file2['feat_name'].map(feature_desc)
+
+
+# In[31]:
+
+
+df_file2
+
+
+# ## Save
+
+# In[ ]:
+
+
+df_file1.to_csv('file1.csv', index=False)
+df_file2.to_csv('file2.csv')
+

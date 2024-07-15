@@ -1,0 +1,11 @@
+,feat_id,feat_name,feat_description,model_feat_imp_train,feat_rank_train
+0,1,batsmens_averages_ratios,,1.6589549779891968,13
+1,2,batsmens_strike_rates_ratios,,1.2612690925598145,
+2,3,bowlers_strike_rates_ratios,,1.172584891319275,
+3,4,bowlers_economy_ratios,,1.976999044418335,
+4,5,bowlers_extras_ratios,,1.438718318939209,
+5,6,team1_winp_team2_last5,,1.9845589399337769,
+6,7,team1_winp_team2_last10,,2.569841146469116,
+7,8,team_average_score_ratios,,2.2186694145202637,
+8,9,win_percentage_team1_last_15,,1.3931119441986084,
+9,10,win_percentage_team2_last_15,,,

@@ -1,0 +1,11 @@
+,feat_id,feat_name,feat_description,model_feat_imp_train,feat_rank_train
+0,1,batsmens_averages_ratios,Ratio of average batsmen score of team1 and team2,3.624973059,18
+1,2,batsmens_strike_rates_ratios,Ratio of average batsmen strike rate of team1 and team2,3.893077374,19
+2,3,bowlers_strike_rates_ratios,Ratio of average bowler strike rate of team1 and team2. Strike rate = total balls bowled / total wickets taken,2.670032263,8
+3,4,bowlers_economy_ratios,Ratio of average economy rates of bowlers of team1 and team 2,2.556600809,7
+4,5,bowlers_extras_ratios,Ratio of extra runs given by bowlers of team1 and team 2,2.828206062,11
+5,6,win_percentage_ratios,"Probabilty of team 1 winning against team 2 in last 10 matches between them , their ratios",2.09687233,2
+6,7,team1_average_score,Average score of team1 ,4.77121973,22
+7,8,team2_average_score,Average score of team2 ,4.808840752,23
+8,9,team1_fielding_score,Fielding score of overall team 1,3.42951417,17
+9,10,team2_fielding_score,Fielding score of overall team 2,3.945436478,20
